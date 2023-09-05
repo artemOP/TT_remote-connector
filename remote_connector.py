@@ -36,7 +36,7 @@ async def connect(url: str, loop: AbstractEventLoop = None, remote: bool = True)
 
 
 async def get_ws_url() -> str:
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(json_serialize=json.dumps) as session:
         async with session.get("http://localhost:13172/json/list") as response:
             return await response.json()["webSocketDebuggerUrl"][0]
 
