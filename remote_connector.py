@@ -8,9 +8,15 @@ from typing import TYPE_CHECKING
 import aiohttp
 import cripy
 
+try:
+    import ujson as json
+except ImportError:
+    import json
+
 if TYPE_CHECKING:
     from asyncio import AbstractEventLoop
     from cripy import Client
+    from typing import cast
 
 
 @asynccontextmanager
@@ -33,8 +39,10 @@ async def get_ws_url() -> str:
 async def main() -> None:
     url = await get_ws_url()
     async with connect(url) as client:
-        ...
+        client = cast(Client, client)
+        await asyncio.gather(client.Page.enable(), client.Runtime.enable(), client.Debugger.enable())
 
 
 if __name__ == "__main__":
+    execution_context_id = None
     asyncio.run(main())
