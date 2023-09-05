@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 import traceback
 from typing import TYPE_CHECKING
 
@@ -22,7 +22,12 @@ if TYPE_CHECKING:
 @asynccontextmanager
 async def connect(url: str, loop: AbstractEventLoop = None, remote: bool = True) -> Client:
     try:
-        client = cripy.connect(url, remote=remote, flatten_sessions=True, loop=loop or asyncio.get_event_loop())
+        client = cripy.connect(
+            url,
+            remote=remote,
+            flatten_sessions=True,
+            loop=loop or asyncio.get_event_loop(),
+        )
         yield client
     except Exception:
         traceback.print_exc()
@@ -31,7 +36,7 @@ async def connect(url: str, loop: AbstractEventLoop = None, remote: bool = True)
 
 
 async def get_ws_url() -> str:
-    with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
         async with session.get("http://localhost:13172/json/list") as response:
             return await response.json()["webSocketDebuggerUrl"][0]
 
@@ -45,4 +50,5 @@ async def main() -> None:
 
 if __name__ == "__main__":
     execution_context_id = None
-    asyncio.run(main())
+    with suppress(KeyboardInterrupt):
+        asyncio.run(main())
