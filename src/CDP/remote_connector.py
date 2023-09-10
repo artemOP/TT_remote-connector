@@ -41,10 +41,10 @@ class CDPClient:
             self.logger.info(f"WS URL found: {data[0]['webSocketDebuggerUrl']}")
             return data[0]["webSocketDebuggerUrl"]
 
-    async def entry(self, subscription: EventSubscriptions | Iterable[EventSubscriptions]) -> None:
+    async def enter(self, subscription: EventSubscriptions | Iterable[EventSubscriptions]) -> None:
         if not (url := await self.get_ws_url()):
             return
-        self.running.set()
+
         try:
             self.client = await cripy.connect(url, remote=False, flatten_sessions=True)
         except Exception as e:

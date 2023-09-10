@@ -9,6 +9,7 @@ except ImportError:
     import json
 
 from src.CDP.remote_connector import CDPClient
+from src.WebServer.dpgserver import DpgServer
 from src.enums.subscriptions import EventSubscriptions
 
 logging.basicConfig(level=logging.INFO)
@@ -17,10 +18,13 @@ logging.getLogger("websockets").setLevel(logging.ERROR)
 
 
 async def main() -> None:
-    CDP_LOCK = asyncio.Event()
+    RUNNING_LOCK = asyncio.Event()
+
     async with aiohttp.ClientSession(json_serialize=json.dumps) as session:
-        CDP = CDPClient(session, CDP_LOCK)
-        await CDP.entry(EventSubscriptions.enable_position)
+        RUNNING_LOCK.set()
+        DPG = asyncio.to_thread(DpgServer(RUNNING_LOCK).enter)
+        CDP = CDPClient(session, RUNNING_LOCK).enter(EventSubscriptions.enable_position)
+        await asyncio.gather(DPG, CDP)
 
 
 if __name__ == "__main__":
