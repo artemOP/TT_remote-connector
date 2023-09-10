@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
+from dataclasses import dataclass
 from enum import Enum
 import logging
+import queue
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -16,7 +18,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from cripy import Client
-    from typing import Any, Literal, LiteralString
+    from typing import Any, Generator, LiteralString
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -30,6 +32,25 @@ class EventSubscriptions(Enum):
     enable_peds = "enablePeds"  # sends a peds event back every 400ms with [[x, y, z], ...]
     enable_blips = "enableBlips"  # sends a blips event every 30s with [[x, y, z, sprite, colour, alpha, type], ...]
     enable_chat = "enableChat"  # sends a chat event when a chat message is received, data may depend on message
+
+
+@dataclass(slots=True, frozen=True)
+class Position:
+    x: float
+    y: float
+    z: float
+    heading: float
+
+    def __hash__(self):
+        return hash((self.x, self.y, self.z))
+
+
+class Queue(queue.Queue):
+    def __enter__(self, block=True, timeout=None):
+        return self.get(block, timeout)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.task_done()
 
 
 async def get_ws_url() -> str:
@@ -47,7 +68,7 @@ class CDPClient:
 
     def __init__(self, url: LiteralString):
         self.url = url
-        self.nodes: dict[Literal["X", "Y", "Z", "Heading"], list[float]] = {"X": [], "Y": [], "Z": [], "Heading": []}
+        self.nodes: [queue.Queue[Position]] = Queue()
 
     async def entry(self) -> None:
         try:
@@ -71,13 +92,19 @@ class CDPClient:
     async def close(self):
         if self.client:
             await self.client.dispose()
+        for item in self.iter_positions():
+            logging.debug(item)
+
+    def iter_positions(self) -> Generator[Position, None, None]:
+        while not self.nodes.empty():
+            with self.nodes as node:
+                yield node
 
     async def on_binding_called(self, payload: dict[str, Any]) -> None:
         payload = json.loads(payload["payload"])
         if payload["type"] != "position":
             return
-        for i, key in enumerate(self.nodes):
-            self.nodes[key].append(payload["data"][i])
+        self.nodes.put_nowait(Position(*payload["data"]))
 
     async def on_script_parsed(self, payload: dict[str, Any]) -> None:
         logging.debug(f"Script parsed: {payload}")
