@@ -18,7 +18,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     from cripy import Client
-    from typing import Any, Generator, LiteralString
+    from typing import Any, Generator, LiteralString, Iterable
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -70,7 +70,7 @@ class CDPClient:
         self.url = url
         self.nodes: [queue.Queue[Position]] = Queue()
 
-    async def entry(self) -> None:
+    async def entry(self, subscription: EventSubscriptions | Iterable[EventSubscriptions]) -> None:
         try:
             self.client = await cripy.connect(self.url, remote=False, flatten_sessions=True)
         except Exception as e:
@@ -83,7 +83,11 @@ class CDPClient:
             self.client.Runtime.enable(),
             self.client.Debugger.enable(),
         )
-        await self.send_app_command(EventSubscriptions.enable_position)
+        if isinstance(subscription, Iterable):
+            for event in subscription:
+                await self.send_app_command(event)
+        else:
+            await self.send_app_command(subscription)
 
         while not self.client.closed:
             await asyncio.sleep(1)
@@ -126,7 +130,7 @@ class CDPClient:
 async def main() -> None:
     url = await get_ws_url()
     logging.info(f"Websocket URL found: {url}")
-    await CDPClient(url).entry()
+    await CDPClient(url).entry(EventSubscriptions.enable_position)
 
 
 if __name__ == "__main__":
