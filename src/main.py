@@ -9,7 +9,6 @@ except ImportError:
     import json
 
 from src.CDP.remote_connector import CDPClient
-from src.WebServer.dpgserver import DpgServer
 from src.enums.subscriptions import EventSubscriptions
 
 logging.basicConfig(level=logging.INFO)
@@ -22,15 +21,13 @@ async def main() -> None:
 
     async with aiohttp.ClientSession(json_serialize=json.dumps) as session:
         RUNNING_LOCK.set()
-        DPG = asyncio.to_thread(DpgServer(RUNNING_LOCK).enter)
-        CDP = CDPClient(session, RUNNING_LOCK).enter(EventSubscriptions.enable_position)
-        await asyncio.gather(DPG, CDP)
+        await CDPClient(session, RUNNING_LOCK).enter(EventSubscriptions.enable_position)
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except KeyboardInterrupt:
+    except (RuntimeError, KeyboardInterrupt):
         logging.info("Exiting...")
     except Exception as e:
         logging.exception(e)

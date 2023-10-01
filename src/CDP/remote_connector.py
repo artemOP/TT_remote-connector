@@ -64,21 +64,22 @@ class CDPClient:
             await self.send_app_command(subscription)
 
         while not self.client.closed and self.running.is_set():
-            await asyncio.sleep(30)
-            self.running.clear()
+            await asyncio.sleep(1)
+            # self.running.clear()
         await self.close()
 
     async def close(self):
         if self.client:
             await self.client.dispose()
-        for item in self.nodes:
-            self.logger.info(item)
+        # for item in self.nodes:
+        #     self.logger.info(item)
 
     async def on_binding_called(self, payload: dict[str, Any]) -> None:
         payload = json.loads(payload["payload"])
         if payload["type"] != "position":
             return
         self.nodes.put_nowait(Position(*payload["data"]))
+        self.logger.info(f"Position: {payload['data']}")
 
     async def on_script_parsed(self, payload: dict[str, Any]) -> None:
         self.logger.debug(f"Script parsed: {payload}")
