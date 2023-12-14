@@ -8,8 +8,8 @@ try:
 except ImportError:
     import json
 
-from src.CDP.remote_connector import CDPClient
-from src.enums.subscriptions import EventSubscriptions
+from .CDP.remote_connector import CDPClient
+from .enums.subscriptions import EventSubscriptions
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("asyncio").setLevel(logging.ERROR)
